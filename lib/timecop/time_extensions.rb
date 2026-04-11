@@ -50,7 +50,12 @@ class Date #:nodoc:
 
       d = Date._strptime(str, fmt)
       now = Time.now.to_date
-      year = d[:year] || d[:cwyear] || now.year
+
+      # If "current" time falls near a year boundary, with a year-ambiguous str, we need to explicitly handle it
+      cwday = d[:cwday] && (now + (d[:cwday] - now.wday))
+      wday = d[:wday] && (now + (d[:wday] - now.wday))
+
+      year = d[:year] || d[:cwyear] || (cwday || wday || now).year
       mon = d[:mon] || now.mon
       if d.keys == [:year]
         Date.new(year, 1, 1, start)
@@ -59,7 +64,8 @@ class Date #:nodoc:
       elsif d[:yday]
         Date.new(year, 1, 1, start).next_day(d[:yday] - 1)
       elsif d[:cwyear] || d[:cweek] || d[:wnum0] || d[:wnum1] || d[:wday] || d[:cwday]
-        week = d[:cweek] || d[:wnum1] || d[:wnum0] || now.strftime('%W').to_i
+        # When only a day (wday/cwday) is present, derive the week from the resolved date; otherwise fall back to now's week
+        week = d[:cweek] || d[:wnum1] || d[:wnum0] || (cwday || wday || now).strftime('%W').to_i
         if d[:wnum0] #Week of year where week starts on sunday
           if d[:cwday] #monday based day of week
             Date.strptime_without_mock_date("#{year} #{week} #{d[:cwday]}", '%Y %U %u', start)
